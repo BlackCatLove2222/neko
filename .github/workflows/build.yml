@@ -7,8 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -18,23 +16,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with ReVanced CLI
+      - name: Build and Patch
         run: |
-          # 1. ghコマンドで確実にバイナリをダウンロード
-          # CLIとPatchesをリポジトリ名から自動取得
-          gh release download --repo ReVanced/revanced-cli --pattern "revanced-cli-all.jar"
-          gh release download --repo ReVanced/revanced-patches --pattern "*.rvp"
+          # 1. ダウンロードとチェックを1つのコマンドブロックで完結させる
+          echo "Downloading CLI..."
+          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar" || exit 1
           
-          # 2. APKのダウンロード（あなたのReleaseから）
-          curl -L -o app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
+          echo "Downloading APK..."
+          curl -L "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm" -o app.apkm || exit 1
           
-          # 3. 実行前のファイルチェック（ここで壊れていないか確実に判定）
-          echo "Checking file sizes..."
-          ls -lh *.jar *.rvp *.apkm
+          # 2. パッチはリポジトリにあるものを直接指定
+          PATCH_FILE=$(find . -maxdepth 1 -name "*.rvp" | head -n 1)
           
-          # 4. パッチ適用
+          # 3. 最終確認：ファイルが本当に揃っているか
+          if [ ! -s "revanced-cli.jar" ] || [ ! -s "$PATCH_FILE" ] || [ ! -s "app.apkm" ]; then
+            echo "Error: Files not found or corrupted!"
+            ls -lh
+            exit 1
+          fi
+          
+          # 4. 実行
           unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b *.rvp --exclusive
+          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
           
           # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
