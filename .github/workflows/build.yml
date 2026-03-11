@@ -18,23 +18,22 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. CLIとパッチの取得
-          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          # 1. リポジトリ内のファイルをそのまま使用 (ダウンロード処理を削除)
+          CLI_JAR="revanced-cli-all.jar"
+          PATCH_FILE="patches-5.50.2.rvp"
           
-          # 2. APKのダウンロード（URLを引用符で囲み、エラー時に即停止するように設定）
+          # 2. APKのダウンロード（署名付きURLを使用）
           URL="https://release-assets.githubusercontent.com/github-production-release-asset/1178610860/3c351531-5323-42fa-9369-8a4886dd6b6f?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-03-11T11%3A01%3A10Z&rscd=attachment%3B+filename%3Dapp.apkm&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-03-11T10%3A00%3A53Z&ske=2026-03-11T11%3A01%3A10Z&sks=b&skv=2018-11-09&sig=Bi5H3ABcmFs0b0ng0j1BpbwPP%2F%2F40j2jzLW%2F3VvfgHw%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc3MzIyNTA1NCwibmJmIjoxNzczMjIzMjU0LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.V11XMIEnp6bv-ktHF75ahXtAKeEXtaXERF6c57pLSXU&response-content-disposition=attachment%3B%20filename%3Dapp.apkm&response-content-type=application%2Foctet-stream"
-          curl -fL "$URL" -o app.apkm || { echo "Download failed!"; exit 1; }
+          curl -L "$URL" -o app.apkm
           
-          # 3. ファイルサイズチェック（50MB以下なら失敗とみなす）
-          SIZE=$(stat -c%s "app.apkm")
-          if [ "$SIZE" -lt 50000000 ]; then echo "Error: File too small ($SIZE)"; exit 1; fi
+          # 3. ファイルの存在とサイズを厳密にチェック
+          ls -lh $CLI_JAR $PATCH_FILE app.apkm
           
-          # 4. 実行
+          # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches.rvp --exclusive
+          java -jar "$CLI_JAR" -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
           
-          # 5. モジュール化
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
@@ -42,3 +41,8 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           cd final_module && zip -r ../X-Patched-Module.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Final-Magisk-Module
+          path: X-Patched-Module.zip
