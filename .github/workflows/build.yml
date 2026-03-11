@@ -20,36 +20,34 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. ファイル確認
-          CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
-          APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
-
+          # 1. 必要なファイルを特定
+          CLI_JAR=$(ls revanced-cli-*.jar | head -n 1)
+          APK_FILE=$(ls *.apkm | head -n 1)
+          
           # 2. パッチを事前にダウンロード
           curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp" -o patches.rvp
-
+          
           # 3. APKの解凍とベースAPKの特定
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
-
-          # 4. パッチ適用 (修正：イコールを使わず、短縮オプション -a -o -p を使用する)
-          # これにより、バージョンによる構文の違いを吸収します
+          
+          # 4. パッチ適用 (ヘルプ画面通りの引数形式に変更)
+          # `--exclusive` を外すことで自動的に適切なパッチが選ばれます
           java -jar "$CLI_JAR" patch \
-            -a "$BASE_APK" \
-            -o patched.apk \
-            -p patches.rvp \
+            --app="$BASE_APK" \
+            --patches=patches.rvp \
+            --out=patched.apk \
             --force
 
-          # 5. モジュール化
+          # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
-          
-          # module.propの作成
           echo "id=x_revanced_patched" > final_module/module.prop
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           
-          # 6. ZIP作成 (Magiskが認識できる正しい階層構造)
+          # 6. ZIP圧縮 (Magiskが認識できる正しい階層構造)
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
