@@ -16,18 +16,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with ReVanced CLI
+      - - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なツールをダウンロード
-          wget https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli.jar -O revanced-cli.jar
+          # 1. GitHub APIを使用して最新のCLIのダウンロードURLを取得してダウンロード
+          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | grep "browser_download_url.*\.jar" | cut -d '"' -f 4)
+          wget "$CLI_URL" -O revanced-cli.jar
           
-          # 2. XAPK (Bundle) をダウンロード
-          # ※URLは適宜最新のXAPK直リンクに書き換えてください
-          wget "https://d.apkpure.com/b/XAPK/com.twitter.android?version=latest" -O app.xapk
+          # 2. XAPK (Bundle) をダウンロード（リンクは最新のものに置き換えてください）
+          wget "https://www.apkmirror.com/wp-content/themes/apkmirror/download.php?id=853245" -O app.xapk
           
           # 3. XAPKの解凍とベースAPKの抽出
           unzip app.xapk -d temp_apk
-          find temp_apk -name "base.apk" -o -name "*.apk" | sort -nr | head -n 1 > base_path.txt
+          # base.apk が見つからない場合に備えて、サイズが最大のapkを探す
+          find temp_apk -name "*.apk" -printf "%s %p\n" | sort -nr | head -n 1 | cut -d' ' -f2- > base_path.txt
           cp $(cat base_path.txt) twitter.apk
           
           # 4. パッチ適用
