@@ -18,24 +18,19 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. リポジトリ内のファイル名を確認（必要に応じてファイル名を合わせてください）
-          CLI_JAR=$(find . -name "*revanced-cli*.jar" | head -n 1)
-          PATCHES=$(find . -name "*.rvp" | head -n 1)
+          # 1. 確実に存在するファイルを確認
+          ls -l revanced-cli-all.jar
+          ls -l patches-5.50.2.rvp
           
-          # 2. APKのダウンロード（GitHub ReleaseのURL）
-          # ここに改めて、先ほど確認した正しい「ダウンロードリンク」を指定します
+          # 2. APKのダウンロード
           URL="https://github.com/BlackCatLove2222/sample/releases/download/apkm/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.2.2.apkm"
           wget --user-agent="Mozilla/5.0" --no-check-certificate "$URL" -O app.apkm
           
-          # 3. ファイル確認
-          ls -lh "$CLI_JAR" "$PATCHES" app.apkm
-          
-          # 4. パッチ適用
+          # 3. パッチ適用
           unzip -o app.apkm -d temp_apk
-          find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
-          java -jar "$CLI_JAR" -a $(cat base_path.txt) -o patched.apk -b "$PATCHES" --exclusive
+          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches-5.50.2.rvp --exclusive
           
-          # 5. モジュール作成
+          # 4. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
