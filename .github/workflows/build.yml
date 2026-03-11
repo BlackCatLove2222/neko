@@ -1,56 +1,21 @@
-name: Build X Magisk Module
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build with ReVanced CLI
+- name: Build with ReVanced CLI
         run: |
-          # 1. 指定のGitHub Releaseからファイルをダウンロード
-          # CLI
-          curl -L -o revanced-cli-all.jar "https://github.com/BlackCatLove2222/sample/releases/download/apkm/revanced-cli-5.0.1-all.jar"
-          # APK (リポジトリのReleaseから)
-          curl -L -o app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
+          # 1. 確実に必要なファイルをダウンロードする
+          # -f: 失敗時に終了, -L: リダイレクト追従, -o: 出力先
+          curl -fL -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          curl -fL -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
           
-          # 2. リポジトリのルートにあるパッチファイルを確認
-          # ファイル名が 'patches-5.50.2.rvp' 等の場合、ここを適宜合わせてください
-          PATCH_FILE=$(ls *.rvp | head -n 1)
+          # 2. APKのダウンロード（提示いただいた署名付きURLを使用）
+          URL="https://release-assets.githubusercontent.com/..." # ここに正しい署名付きURLを貼り付け
+          curl -fL "$URL" -o app.apkm
           
-          echo "Using CLI: revanced-cli-all.jar"
-          echo "Using Patches: $PATCH_FILE"
-          
-          # 3. ファイル存在チェック（万が一の備え）
-          if [ ! -f "revanced-cli-all.jar" ] || [ ! -f "$PATCH_FILE" ] || [ ! -f "app.apkm" ]; then
-             echo "Error: Required files missing!"
-             exit 1
+          # 3. 破損チェック: 各ファイルのサイズを確認
+          # JARファイルが最低でも10MB以上あるかを確認
+          if [ $(stat -c%s "revanced-cli.jar") -lt 10000000 ]; then
+            echo "Error: revanced-cli.jar is corrupted or too small."
+            exit 1
           fi
-
+          
           # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
-          
-          # 5. モジュール作成
-          mkdir -p final_module/system/app/Twitter
-          cp patched.apk final_module/system/app/Twitter/Twitter.apk
-          echo "id=x_revanced_patched" > final_module/module.prop
-          echo "name=X Patched (ReVanced)" >> final_module/module.prop
-          echo "version=11.72.0" >> final_module/module.prop
-          echo "author=GeminiUser" >> final_module/module.prop
-          cd final_module && zip -r ../X-Patched-Module.zip .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Final-Magisk-Module
-          path: X-Patched-Module.zip
+          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches.rvp --exclusive
