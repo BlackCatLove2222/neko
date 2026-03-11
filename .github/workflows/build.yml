@@ -20,16 +20,14 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なファイルを安全に探索
+          # 1. 必要なファイルを探索
           CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
           APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
-          PATCH_FILE=$(ls *.rvp 2>/dev/null | head -n 1)
           
-          # 2. ファイルが見つからない場合のガード（ログで確認可能）
-          echo "Debug: CLI_JAR=$CLI_JAR, APK_FILE=$APK_FILE, PATCH_FILE=$PATCH_FILE"
-          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ] || [ -z "$PATCH_FILE" ]; then
-            echo "Error: 必要なファイルが見つかりません。リポジトリを確認してください。"
-            ls -F
+          # 2. ファイルの存在確認
+          echo "Debug: CLI_JAR=$CLI_JAR, APK_FILE=$APK_FILE"
+          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
+            echo "Error: 必要なファイル（JARまたはAPKM）が見つかりません"
             exit 1
           fi
           
@@ -38,8 +36,8 @@ jobs:
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
           echo "Debug: Found Base APK at $BASE_APK"
           
-          # 4. パッチ適用（最新のCLI仕様に従い 'patch' を指定）
-          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b "$PATCH_FILE" --exclusive
+          # 4. パッチ適用（パッチファイルをURLから自動取得することで互換性エラーを防ぐ）
+          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp --exclusive
           
           # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
@@ -48,8 +46,6 @@ jobs:
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
-          
-          # 6. zip圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
