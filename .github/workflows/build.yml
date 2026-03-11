@@ -18,20 +18,24 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なツールを取得
-          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          # 1. リポジトリ内のファイル名を確認（必要に応じてファイル名を合わせてください）
+          CLI_JAR=$(find . -name "*revanced-cli*.jar" | head -n 1)
+          PATCHES=$(find . -name "*.rvp" | head -n 1)
           
-          # 2. APKをダウンロード（URLを直接指定してScheme missingを回避）
+          # 2. APKのダウンロード（GitHub ReleaseのURL）
+          # ここに改めて、先ほど確認した正しい「ダウンロードリンク」を指定します
           URL="https://github.com/BlackCatLove2222/sample/releases/download/apkm/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.2.2.apkm"
-          wget --user-agent="Mozilla/5.0" "$URL" -O app.apkm
+          wget --user-agent="Mozilla/5.0" --no-check-certificate "$URL" -O app.apkm
           
-          # 3. パッチ適用
+          # 3. ファイル確認
+          ls -lh "$CLI_JAR" "$PATCHES" app.apkm
+          
+          # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
           find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
-          java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
+          java -jar "$CLI_JAR" -a $(cat base_path.txt) -o patched.apk -b "$PATCHES" --exclusive
           
-          # 4. モジュール作成
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
