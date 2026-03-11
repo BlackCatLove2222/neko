@@ -15,22 +15,28 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # Node.js 20の警告対策を追加
+          cache: 'gradle'
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 確実に存在するファイルを確認
-          ls -l revanced-cli-all.jar
-          ls -l patches-5.50.2.rvp
+          # 1. GitHub公式サーバーからファイルを確実にダウンロード
+          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
           
-          # 2. APKのダウンロード
+          # 2. APKのダウンロード（直リンクに変更）
+          # あなたのGitHub Releaseにあるファイルの「生リンク」をここに貼り付けます
           URL="https://github.com/BlackCatLove2222/sample/releases/download/apkm/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.2.2.apkm"
-          wget --user-agent="Mozilla/5.0" --no-check-certificate "$URL" -O app.apkm
+          curl -L "$URL" -o app.apkm
           
-          # 3. パッチ適用
+          # 3. ファイルの存在確認
+          ls -l revanced-cli.jar patches.rvp app.apkm
+          
+          # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches-5.50.2.rvp --exclusive
+          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches.rvp --exclusive
           
-          # 4. モジュール作成
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
