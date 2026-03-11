@@ -18,26 +18,34 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with ReVanced CLI
+     - name: Build with ReVanced CLI
         run: |
-          # 確実にファイルを探す（見つからない場合はエラーで止める）
-          CLI_JAR=$(ls revanced-cli-*.jar | head -n 1)
-          APK_FILE=$(ls *.apkm | head -n 1)
-          PATCH_FILE=$(ls *.rvp | head -n 1)
+          # 1. ファイルを確実に探す
+          CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
+          APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
+          PATCH_FILE=$(ls *.rvp 2>/dev/null | head -n 1)
           
-          echo "Using: $CLI_JAR, $APK_FILE, $PATCH_FILE"
-          
-          # ファイルの存在確認
-          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
-            echo "Error: 必要なファイルがリポジトリに見当たりません。LFSの設定を確認してください。"
+          # 2. 存在チェック（重要！）
+          echo "Debug: CLI_JAR=$CLI_JAR, APK_FILE=$APK_FILE, PATCH_FILE=$PATCH_FILE"
+          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ] || [ -z "$PATCH_FILE" ]; then
+            echo "Error: 必要なファイルが見つかりません。リポジトリの内容を確認してください。"
             ls -F
             exit 1
           fi
           
-          # 実行
+          # 3. 実行
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -name "base.apk" | head -n 1)
           java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b "$PATCH_FILE" --exclusive
+          
+          # 4. 以下、モジュール作成（既存のまま）
+          mkdir -p final_module/system/app/Twitter
+          cp patched.apk final_module/system/app/Twitter/Twitter.apk
+          echo "id=x_revanced_patched" > final_module/module.prop
+          echo "name=X Patched (ReVanced)" >> final_module/module.prop
+          echo "version=11.72.0" >> final_module/module.prop
+          echo "author=GeminiUser" >> final_module/module.prop
+          cd final_module && zip -r ../X-Patched-Module.zip .
           
           # 以下、モジュール作成
           mkdir -p final_module/system/app/Twitter
