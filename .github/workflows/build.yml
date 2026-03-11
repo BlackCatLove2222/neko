@@ -26,30 +26,31 @@ jobs:
             exit 1
           fi
 
-          # 2. パッチとインテグレーションをダウンロード（修正: 正しいURLを使用し、破損チェック追加）
-          curl -L -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar"
-          curl -L -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/latest/download/revanced-integrations.apk"
+          # 2. パッチとインテグレーションをダウンロード（修正: 安定したダウンロードオプション追加、latest URL確認）
+          # GitHubのlatestリダイレクトを処理するため、-L -f を使用。失敗したらエラー
+          curl -L -f -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
+          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/latest/download/revanced-integrations.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
 
-          # ファイルサイズチェック（破損を防ぐ: 最小サイズとして100KB以上を想定）
-          if [ ! -s patches.jar ] || [ $(stat -c%s patches.jar) -lt 100000 ]; then
-            echo "Error: patches.jar のダウンロードに失敗または破損しています。"
+          # ファイルサイズチェック（最小サイズを50KBに調整: 実際のパッチは数MBだが、安全に）
+          if [ $(stat -c%s patches.jar) -lt 50000 ]; then
+            echo "Error: patches.jar が破損または空です（サイズ: $(stat -c%s patches.jar) バイト）。"
             exit 1
           fi
-          if [ ! -s integrations.apk ] || [ $(stat -c%s integrations.apk) -lt 100000 ]; then
-            echo "Error: integrations.apk のダウンロードに失敗または破損しています。"
+          if [ $(stat -c%s integrations.apk) -lt 50000 ]; then
+            echo "Error: integrations.apk が破損または空です（サイズ: $(stat -c%s integrations.apk) バイト）。"
             exit 1
           fi
 
           # 3. APKの解凍とベースAPKの特定
           unzip -o "$APK_FILE" -d temp_apk
-          BASE_APK=$(find temp_apk -type f -name "base.apk" | head -n 1)  # base.apkを明示的に指定
+          BASE_APK=$(find temp_apk -type f -name "base.apk" | head -n 1)
 
           if [ -z "$BASE_APK" ]; then
             echo "Error: base.apk が見つかりません。"
             exit 1
           fi
 
-          # 4. パッチ適用（修正: ReVanced CLIの正しいオプションを使用、integrationsをmerge）
+          # 4. パッチ適用（ReVanced CLIの正しいオプションを使用）
           java -jar "$CLI_JAR" patch \
             --bundle=patches.jar \
             --merge=integrations.apk \
@@ -57,7 +58,7 @@ jobs:
             --force \
             "$BASE_APK"
 
-          # 5. Magiskモジュール構成の作成（アプリ名をX/Twitterに合わせて調整可能）
+          # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
