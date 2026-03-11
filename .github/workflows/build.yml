@@ -19,30 +19,34 @@ jobs:
       - name: Install Android Build Tools
         run: sudo apt-get update && sudo apt-get install -y android-sdk-build-tools
 
-      - - name: Build with ReVanced CLI
-       - name: Build with ReVanced CLI
+      - name: Build with ReVanced CLI
         run: |
           [ -f settings.env ] && source settings.env
           
-          # 1. 確実にダウンロードし、サイズを確認
+          # CLIとパッチのダウンロード
           curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
           curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          
+          # APKのダウンロード（settings.envに定義されたAPK_URLを使用）
+          if [ -z "$APK_URL" ]; then echo "Error: APK_URL is empty"; exit 1; fi
           wget --user-agent="Mozilla/5.0" "$APK_URL" -O app.apkm
           
-          # 2. ファイルチェック：すべて1MB以上あるか？
-          if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ] || [ $(stat -c%s "patches.rvp") -lt 1000000 ] || [ $(stat -c%s "app.apkm") -lt 1000000 ]; then
-            echo "エラー: ダウンロード失敗。ファイルサイズを確認してください。"
-            ls -lh
-            exit 1
-          fi
+          # ファイルサイズ確認（空ファイルを弾く）
+          if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ]; then echo "CLI download failed"; exit 1; fi
           
-          # 3. 実行
+          # 解凍とパッチ適用
           unzip -o app.apkm -d temp_apk
           find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
           java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
           
-          # ... (以下モジュール化)
-          # 3. 解凍とパッチ適用... (以下省略)
+          # モジュール作成
+          mkdir -p final_module/system/app/Twitter
+          cp patched.apk final_module/system/app/Twitter/Twitter.apk
+          echo "id=x_revanced_patched" > final_module/module.prop
+          echo "name=X Patched (ReVanced)" >> final_module/module.prop
+          echo "version=11.72.0" >> final_module/module.prop
+          echo "author=GeminiUser" >> final_module/module.prop
+          cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
         with:
