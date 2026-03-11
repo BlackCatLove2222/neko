@@ -3,7 +3,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,33 +10,46 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - name: Build with ReVanced CLI
         run: |
           # 1. 必要なファイルを特定
           CLI_JAR=$(ls revanced-cli-*.jar | head -n 1)
           APK_FILE=$(ls *.apkm | head -n 1)
-          
-          # 2. パッチを事前にダウンロード
-          curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp" -o patches.rvp
-          
-          # 3. APKの解凍とベースAPKの特定
+
+          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
+            echo "Error: revanced-cli-*.jar または *.apkm が見つかりません。"
+            exit 1
+          fi
+
+          # 2. パッチを事前にダウンロード（修正: URLとファイル名を正しいものに変更）
+          curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar" -o patches.jar
+
+          if [ ! -s patches.jar ]; then
+            echo "Error: patches.jar のダウンロードに失敗しました。"
+            exit 1
+          fi
+
+          # 3. APKの解凍とベースAPKの特定（修正: base.apkが見つからない場合のチェック追加）
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
-          
-          # 4. パッチ適用 (ヘルプ画面通りの引数形式に変更)
-          # `--exclusive` を外すことで自動的に適切なパッチが選ばれます
+
+          if [ -z "$BASE_APK" ]; then
+            echo "Error: base.apk が見つかりません。"
+            exit 1
+          fi
+
+          # 4. パッチ適用（修正: --appオプションを削除し、$BASE_APKをポジショナル引数として最後に移動）
+          # --exclusive を外すことで自動的に適切なパッチが選ばれます
           java -jar "$CLI_JAR" patch \
-            --app="$BASE_APK" \
-            --patches=patches.rvp \
+            --patches=patches.jar \
             --out=patched.apk \
-            --force
+            --force \
+            "$BASE_APK"
 
           # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
@@ -46,10 +58,9 @@ jobs:
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
-          
+
           # 6. ZIP圧縮 (Magiskが認識できる正しい階層構造)
           cd final_module && zip -r ../X-Patched-Module.zip .
-
       - uses: actions/upload-artifact@v4
         with:
           name: Final-Magisk-Module
