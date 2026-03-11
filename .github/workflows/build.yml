@@ -17,8 +17,8 @@ jobs:
           distribution: 'temurin'
       - name: Build with ReVanced CLI
         run: |
-          # 1. Clone and build ReVanced CLI
-          git clone https://github.com/ReVanced/revanced-cli.git
+          # 1. Clone and build ReVanced CLI (using inotia00 fork for compatibility)
+          git clone https://github.com/inotia00/revanced-cli.git
           cd revanced-cli
           ./gradlew build
           cd ..
@@ -28,19 +28,19 @@ jobs:
             exit 1
           fi
 
-          # 2. Clone and build ReVanced Patches
-          git clone https://github.com/ReVanced/revanced-patches.git
-          cd revanced-patches
+          # 2. Clone and build piko patches (crimera/piko for Twitter/X)
+          git clone https://github.com/crimera/piko.git
+          cd piko
           ./gradlew build
           cd ..
-          PATCHES_JAR=$(find revanced-patches -name "revanced-patches-*-jar-with-dependencies.jar" | head -n 1)  # Built JAR name format
+          PATCHES_JAR=$(find piko -name "piko-*-jar-with-dependencies.jar" | head -n 1)
           if [ -z "$PATCHES_JAR" ]; then
-            echo "Error: patches.jar not built."
+            echo "Error: piko patches.jar not built."
             exit 1
           fi
 
-          # 3. Clone and build ReVanced Integrations
-          git clone https://github.com/ReVanced/revanced-integrations.git
+          # 3. Clone and build ReVanced Integrations (crimera fork)
+          git clone https://github.com/crimera/revanced-integrations.git
           cd revanced-integrations
           ./gradlew assembleRelease
           cd ..
