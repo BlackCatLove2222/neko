@@ -1,17 +1,51 @@
-- name: Build with ReVanced CLI
+name: Build X Magisk Module
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build and Patch
         run: |
-          # 1. 確実に「生のバイナリ」を落とすURLに変える
-          # GitHubのReleaseページのURLではなく、ファイルの実体への直リンクを指定
+          # 1. 確実に「生のバイナリ」を落とす
           wget -qO revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
           wget -qO app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
           
-          # 2. 【重要】ファイルサイズをチェックする
-          # 1MB未満なら「失敗」とみなして止める
+          # 2. ファイルサイズチェック（1MB未満なら停止）
           if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ]; then
             echo "Error: ダウンロード失敗。中身が空かHTMLです。"
-            ls -lh  # どのファイルが小さいか確認する
+            ls -lh
             exit 1
           fi
           
           # 3. パッチ適用
-          java -jar revanced-cli.jar -a app.apkm -o patched.apk -b *.rvp --exclusive
+          # 現在のリポジトリにある .rvp ファイルを自動指定
+          PATCH_FILE=$(find . -maxdepth 1 -name "*.rvp" | head -n 1)
+          
+          unzip -o app.apkm -d temp_apk
+          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
+          
+          # 4. モジュール作成
+          mkdir -p final_module/system/app/Twitter
+          cp patched.apk final_module/system/app/Twitter/Twitter.apk
+          echo "id=x_revanced_patched" > final_module/module.prop
+          echo "name=X Patched (ReVanced)" >> final_module/module.prop
+          echo "version=11.72.0" >> final_module/module.prop
+          echo "author=GeminiUser" >> final_module/module.prop
+          cd final_module && zip -r ../X-Patched-Module.zip .
+          
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Final-Magisk-Module
+          path: X-Patched-Module.zip
