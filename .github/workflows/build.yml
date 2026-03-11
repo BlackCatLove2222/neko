@@ -17,22 +17,22 @@ jobs:
           distribution: 'temurin'
       - name: Build with ReVanced CLI
         run: |
-          # 1. CLI, パッチ, インテグレーションをダウンロード（固定バージョンURLを使用: 公式/フォークの最新有効リリース）
+          # 1. CLI, パッチ, インテグレーションをダウンロード（最新開発版の固定URLを使用）
           curl -L -f -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/v5.0.1/revanced-cli-5.0.1-all.jar" || { echo "Error: revanced-cli.jar ダウンロード失敗"; exit 1; }
-          curl -L -f -o patches.jar "https://github.com/anddea/revanced-patches/releases/download/v3.16.0/revanced-patches-3.16.0.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
-          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/download/v1.16.0/revanced-integrations-1.16.0.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
+          curl -L -f -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/download/v6.0.0-dev.24/revanced-patches-6.0.0-dev.24.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
+          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/download/v1.17.0-dev.6/revanced-integrations-1.17.0-dev.6.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
 
-          # ファイルサイズチェック
+          # ファイルサイズチェック（最小サイズを調整）
           if [ $(stat -c%s revanced-cli.jar) -lt 10000 ]; then
-            echo "Error: revanced-cli.jar が破損または空です。"
+            echo "Error: revanced-cli.jar が破損または空です（サイズ: $(stat -c%s revanced-cli.jar) バイト）。"
             exit 1
           fi
           if [ $(stat -c%s patches.jar) -lt 50000 ]; then
-            echo "Error: patches.jar が破損または空です。"
+            echo "Error: patches.jar が破損または空です（サイズ: $(stat -c%s patches.jar) バイト）。"
             exit 1
           fi
           if [ $(stat -c%s integrations.apk) -lt 50000 ]; then
-            echo "Error: integrations.apk が破損または空です。"
+            echo "Error: integrations.apk が破損または空です（サイズ: $(stat -c%s integrations.apk) バイト）。"
             exit 1
           fi
 
