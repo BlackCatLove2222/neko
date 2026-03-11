@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true # ←【重要】これがないとActionsがLFSファイルを落とせません
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -16,27 +18,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build and Patch
+      - name: Build with ReVanced CLI
         run: |
-          # 1. 確実に「生のバイナリ」を落とす
-          wget -qO revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          wget -qO app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
+          # リポジトリ内のファイルを特定
+          CLI_JAR=$(find . -name "revanced-cli-*.jar" | head -n 1)
+          APK_FILE=$(find . -name "*.apkm" | head -n 1)
+          PATCH_FILE=$(find . -name "*.rvp" | head -n 1)
           
-          # 2. ファイルサイズチェック（1MB未満なら停止）
-          if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ]; then
-            echo "Error: ダウンロード失敗。中身が空かHTMLです。"
-            ls -lh
-            exit 1
-          fi
+          echo "Using: $CLI_JAR, $APK_FILE, $PATCH_FILE"
           
-          # 3. パッチ適用
-          # 現在のリポジトリにある .rvp ファイルを自動指定
-          PATCH_FILE=$(find . -maxdepth 1 -name "*.rvp" | head -n 1)
+          # 実行
+          unzip -o "$APK_FILE" -d temp_apk
+          java -jar "$CLI_JAR" -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
           
-          unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
-          
-          # 4. モジュール作成
+          # モジュール化
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
@@ -44,7 +39,7 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           cd final_module && zip -r ../X-Patched-Module.zip .
-          
+
       - uses: actions/upload-artifact@v4
         with:
           name: Final-Magisk-Module
