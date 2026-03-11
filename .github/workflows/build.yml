@@ -18,24 +18,20 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. ツール取得時に --retry 3 を追加して安定させる
-          curl -L --retry 3 -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          curl -L --retry 3 -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          # 1. 必要なツールを取得
+          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
           
-          # 2. APKのダウンロード（Googleドライブからの取得）
-          # ※リンク切れを防ぐため、必ず「ダウンロード可能な直リンク」を使用してください
-          wget --user-agent="Mozilla/5.0" --no-check-certificate "$https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm" -O app.apkm
+          # 2. APKをダウンロード（URLを直接指定してScheme missingを回避）
+          URL="https://github.com/BlackCatLove2222/sample/releases/download/apkm/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.2.2.apkm"
+          wget --user-agent="Mozilla/5.0" "$URL" -O app.apkm
           
-          # 3. 実行前のチェック（ファイルが存在し、かつ空ではないか確認）
-          if [ ! -s revanced-cli.jar ]; then echo "Error: CLI download failed"; exit 1; fi
-          if [ ! -s app.apkm ]; then echo "Error: APK download failed"; exit 1; fi
-          
-          # 4. パッチ適用とビルド
+          # 3. パッチ適用
           unzip -o app.apkm -d temp_apk
           find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
           java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
           
-          # 5. モジュール作成
+          # 4. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
