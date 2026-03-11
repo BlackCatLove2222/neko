@@ -1,56 +1,13 @@
-name: Build X Magisk Module
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # 新規追加：Android SDK Build-Tools をインストール
-      - name: Install Android Build Tools
+- name: Build with ReVanced CLI
         run: |
-          sudo apt-get update
-          sudo apt-get install -y android-sdk-build-tools
-
-      - name: Build with ReVanced CLI
-        run: |
-          # 1. CLIとパッチの取得
+          # 1. settings.env から変数を取り込む
+          source settings.env
+          
+          # 2. CLIとパッチの取得 (固定)
           wget https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli.jar -O revanced-cli.jar
           wget https://github.com/revanced/revanced-patches/releases/latest/download/patches-2.0.0.rvp -O patches.rvp
           
-          # 2. APKMダウンロード
-          wget --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "https://eb5e7388c3df147b74dd2379b7cf8323.r2.cloudflarestorage.com/downloadprod/wp-content/uploads/2026/03/69/69a9f2203bf55/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.apkm?X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=72a5ba3a0b8a601e535d5525f12f8177%2F20260311%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260311T043540Z&X-Amz-SignedHeaders=host&X-Amz-Expires=3600&X-Amz-Signature=855bb394749c0afd07c389e8ef192931ce7ab4333a1b85784c07bc85196a1d03" -O app.apkm
+          # 3. APKMダウンロード (変数 $APK_URL を使用)
+          wget --user-agent="Mozilla/5.0" "$APK_URL" -O app.apkm
           
-          # 3. 解凍と抽出
-          unzip app.apkm -d temp_apk
-          find temp_apk -name "*.apk" -printf "%s %p\n" | sort -nr | head -n 1 | cut -d' ' -f2- > base_path.txt
-          cp $(cat base_path.txt) twitter.apk
-          
-          # 4. パッチ適用
-          java -jar revanced-cli.jar -a twitter.apk -o patched.apk -b patches.rvp --exclusive
-          
-          # 5. モジュール化
-          mkdir -p final_module/system/app/Twitter
-          cp patched.apk final_module/system/app/Twitter/Twitter.apk
-          
-          echo "id=x_revanced_patched" > final_module/module.prop
-          echo "name=X Patched (ReVanced)" >> final_module/module.prop
-          echo "version=11.72.0" >> final_module/module.prop
-          echo "author=GeminiUser" >> final_module/module.prop
-          
-          cd final_module && zip -r ../X-Patched-Module.zip .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Final-Magisk-Module
-          path: X-Patched-Module.zip
+          # 以下、解凍・パッチ処理はそのまま...
