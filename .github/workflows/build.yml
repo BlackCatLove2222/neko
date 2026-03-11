@@ -1,5 +1,4 @@
 name: Build X Magisk Module
-
 on:
   push:
     branches: [ main ]
@@ -9,17 +8,32 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create Dummy Module
-        run: |
-          mkdir -p output/system/app/Twitter
-          echo "This is a test module" > output/README.txt
-          zip -r X-Magisk-Module.zip output/
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          name: X-Magisk-Module-Success
-          path: X-Magisk-Module.zip
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with ReVanced CLI
+        run: |
+          # 1. 最新のCLIをダウンロード
+          wget https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli.jar -O revanced-cli.jar
+          
+          # 2. XのAPKをダウンロード (バージョンを指定して取得)
+          # 注意: 公式APKをダウンロードする場所を用意する必要があります
+          # 一旦ここではコマンドのみ記載します
+          
+          # 3. パッチ適用コマンド (仮)
+          # java -jar revanced-cli.jar -a twitter.apk -o patched.apk -b patches-2.0.0.rvp
+          
+          # 4. Magiskモジュール化 (ZIP圧縮)
+          echo "Building module..."
+          mkdir -p final_module/system/app/Twitter
+          # パッチ済みAPKを配置する処理をここに追加
+          zip -r X-Patched-Module.zip final_module/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Final-Magisk-Module
+          path: X-Patched-Module.zip
