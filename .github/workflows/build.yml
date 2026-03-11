@@ -23,7 +23,7 @@ jobs:
         run: |
           # 1. Releasesに上げたCLIを取得
           # 以下の YOUR_COPIED_URL_HERE をコピーしたURLに置き換えてください
-          curl -L -o revanced-cli.jar "YOUR_COPIED_URL_HERE"
+          curl -L -o revanced-cli.jar "https://github.com/BlackCatLove2222/sample/releases/download/test/revanced-cli-5.0.1-all.jar"
           
           # 2. パッチファイルを取得
           curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
