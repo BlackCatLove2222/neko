@@ -18,29 +18,36 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - - name: Build with ReVanced CLI
+      - name: Build with ReVanced CLI
         run: |
           # 1. 必要なファイルを探索
           CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
           APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
           
-          # 2. 解凍とパッチ適用
+          # 2. ファイルの存在確認
+          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
+            echo "Error: 必要なファイル（JARまたはAPKM）が見つかりません"
+            exit 1
+          fi
+          
+          # 3. APKの解凍とベースAPKの特定
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
+          
+          # 4. パッチ適用（パッチファイルをURLから自動取得）
           java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp --exclusive
           
-          # 3. 確実にフォルダを作り、ファイルを配置
+          # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
-          
-          # 4. モジュール情報の書き込み
           echo "id=x_revanced_patched" > final_module/module.prop
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           
-          # 5. ルートディレクトリから直接ZIP圧縮
-          zip -r X-Patched-Module.zip final_module/
+          # 6. ZIP圧縮（フォルダの中身だけを圧縮）
+          cd final_module && zip -r ../X-Patched-Module.zip .
+
       - uses: actions/upload-artifact@v4
         with:
           name: Final-Magisk-Module
