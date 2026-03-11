@@ -48,8 +48,10 @@ jobs:
           java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp --exclusive
           
           # 5. Magiskモジュール構成の作成
-          mkdir -p final_module/system/app/Twitter
+          # フォルダを一つずつ確実に作成し、移動させる
+          mkdir -p final_module/system/app/Twitter/
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
+          
           echo "id=x_revanced_patched" > final_module/module.prop
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
