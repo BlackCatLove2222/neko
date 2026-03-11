@@ -3,7 +3,7 @@ name: Build X Magisk Module
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # 手動実行ボタンを出す設定
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,24 +18,30 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download ReVanced CLI & X APK
+      - name: Get ReVanced Tools
         run: |
-          # 最新のCLIとツールをダウンロードする例
+          # 必要なツール（CLIとPatches）をダウンロード
           wget https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli.jar -O revanced-cli.jar
-          # 本来はここでXのAPKを入手（※著作権に注意し、適切に取得してください）
+          # 統合パッチ（GmsCore用など）も一応取得
+          wget https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.jar -O official-patches.jar
 
-      - name: Apply Patches and Create Magisk Module
+      - name: Download X (Twitter) APK
         run: |
-          # ここで java -jar revanced-cli.jar ... を実行してAPKを生成
-          # その後、Magiskのテンプレート構造（system/app/...）に配置してzip化
-          mkdir -p output/system/app/Twitter
-          echo "Building..." 
-          # (ビルドコマンドの詳細はベースにするリポジトリに合わせます)
+          # APKを外部から取得するスクリプト（簡易版）
+          # 本来は特定のURLが必要ですが、まずはファイルをチェックします
+          echo "Checking for patches-2.0.0.rvp..."
+          ls -l patches-2.0.0.rvp
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Build Module
+        run: |
+          # ここに実際のビルドコマンドを書きますが、
+          # 初心者の方が一番確実に成功するのは j-hc 氏のテンプレートを流用することです。
+          echo "ビルド環境を構築中..."
+          # 一旦ダミーのZIPを作成して動作確認をします
+          zip -r X-Patched-Module.zip config.json patches-2.0.0.rvp README.md
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: ./*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: X-Magisk-Module-Debug
+          path: X-Patched-Module.zip
