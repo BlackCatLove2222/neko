@@ -20,19 +20,22 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なファイルを特定
+          # 1. ファイルを特定
           CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
           APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
           
-          # 2. パッチファイルを事前にダウンロード（確実性を高めるため）
+          # 2. パッチファイルを事前にダウンロード
           curl -L https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp -o patches.rvp
           
-          # 3. APKの解凍とベースAPKの特定
+          # 3. APKの解凍
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
           
-          # 4. パッチ適用 (修正ポイント: -b を -p に変更)
-          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -p patches.rvp --exclusive
+          echo "Debug: Using CLI -> $CLI_JAR"
+          echo "Debug: Using APK -> $BASE_APK"
+
+          # 4. パッチ適用 (修正点: --exclusive を削除し、全パッチを適用)
+          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -p patches.rvp
           
           # 5. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
@@ -42,7 +45,7 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           
-          # 6. ZIP圧縮 (Magiskが認識できる正しい階層構造にする)
+          # 6. ZIP圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
