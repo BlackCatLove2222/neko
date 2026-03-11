@@ -18,20 +18,28 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. リポジトリ内のファイルをそのまま使用 (ダウンロード処理を削除)
-          CLI_JAR="revanced-cli-all.jar"
-          PATCH_FILE="patches-5.50.2.rvp"
+          # 1. 指定のGitHub Releaseからファイルをダウンロード
+          # CLI
+          curl -L -o revanced-cli-all.jar "https://github.com/BlackCatLove2222/sample/releases/download/apkm/revanced-cli-5.0.1-all.jar"
+          # APK (リポジトリのReleaseから)
+          curl -L -o app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
           
-          # 2. APKのダウンロード（署名付きURLを使用）
-          URL="https://release-assets.githubusercontent.com/github-production-release-asset/1178610860/3c351531-5323-42fa-9369-8a4886dd6b6f?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-03-11T11%3A01%3A10Z&rscd=attachment%3B+filename%3Dapp.apkm&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-03-11T10%3A00%3A53Z&ske=2026-03-11T11%3A01%3A10Z&sks=b&skv=2018-11-09&sig=Bi5H3ABcmFs0b0ng0j1BpbwPP%2F%2F40j2jzLW%2F3VvfgHw%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc3MzIyNTA1NCwibmJmIjoxNzczMjIzMjU0LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.V11XMIEnp6bv-ktHF75ahXtAKeEXtaXERF6c57pLSXU&response-content-disposition=attachment%3B%20filename%3Dapp.apkm&response-content-type=application%2Foctet-stream"
-          curl -L "$URL" -o app.apkm
+          # 2. リポジトリのルートにあるパッチファイルを確認
+          # ファイル名が 'patches-5.50.2.rvp' 等の場合、ここを適宜合わせてください
+          PATCH_FILE=$(ls *.rvp | head -n 1)
           
-          # 3. ファイルの存在とサイズを厳密にチェック
-          ls -lh $CLI_JAR $PATCH_FILE app.apkm
+          echo "Using CLI: revanced-cli-all.jar"
+          echo "Using Patches: $PATCH_FILE"
           
+          # 3. ファイル存在チェック（万が一の備え）
+          if [ ! -f "revanced-cli-all.jar" ] || [ ! -f "$PATCH_FILE" ] || [ ! -f "app.apkm" ]; then
+             echo "Error: Required files missing!"
+             exit 1
+          fi
+
           # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
-          java -jar "$CLI_JAR" -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
+          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
           
           # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
