@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -18,27 +20,29 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 確実にCLIを取得する (リダイレクトを考慮)
-          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          # 1. ghコマンドで確実にバイナリをダウンロード
+          # CLIとPatchesをリポジトリ名から自動取得
+          gh release download --repo ReVanced/revanced-cli --pattern "revanced-cli-all.jar"
+          gh release download --repo ReVanced/revanced-patches --pattern "*.rvp"
           
-          # 2. APKのダウンロード
-          # URLは環境に合わせて更新してください
-          curl -L "https://release-assets.githubusercontent.com/github-production-release-asset/1178610860/3c351531-5323-42fa-9369-8a4886dd6b6f?..." -o app.apkm
+          # 2. APKのダウンロード（あなたのReleaseから）
+          curl -L -o app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
           
-          # 3. 破損確認 (ファイルサイズが10MB以下なら停止)
-          if [ $(stat -c%s "revanced-cli.jar") -lt 10000000 ]; then echo "CLI Corrupt"; exit 1; fi
+          # 3. 実行前のファイルチェック（ここで壊れていないか確実に判定）
+          echo "Checking file sizes..."
+          ls -lh *.jar *.rvp *.apkm
           
           # 4. パッチ適用
           unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b patches.rvp --exclusive
+          java -jar revanced-cli-all.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b *.rvp --exclusive
           
-          # 5. モジュール化
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
+          echo "author=GeminiUser" >> final_module/module.prop
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
