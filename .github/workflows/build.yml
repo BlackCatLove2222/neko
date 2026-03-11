@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          lfs: true # ←【重要】これがないとActionsがLFSファイルを落とせません
+          lfs: true # 【重要】LFSファイルを確実に引き出す
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -20,18 +20,25 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # リポジトリ内のファイルを特定
-          CLI_JAR=$(find . -name "revanced-cli-*.jar" | head -n 1)
-          APK_FILE=$(find . -name "*.apkm" | head -n 1)
-          PATCH_FILE=$(find . -name "*.rvp" | head -n 1)
+          # 確実にファイルを探す（見つからない場合はエラーで止める）
+          CLI_JAR=$(ls revanced-cli-*.jar | head -n 1)
+          APK_FILE=$(ls *.apkm | head -n 1)
+          PATCH_FILE=$(ls *.rvp | head -n 1)
           
           echo "Using: $CLI_JAR, $APK_FILE, $PATCH_FILE"
+          
+          # ファイルの存在確認
+          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
+            echo "Error: 必要なファイルがリポジトリに見当たりません。LFSの設定を確認してください。"
+            ls -F
+            exit 1
+          fi
           
           # 実行
           unzip -o "$APK_FILE" -d temp_apk
           java -jar "$CLI_JAR" -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
           
-          # モジュール化
+          # 以下、モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
