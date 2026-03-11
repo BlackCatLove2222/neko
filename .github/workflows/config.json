@@ -1,0 +1,13 @@
+{
+  "patcher": {
+    "patches": "./patches-2.0.0.rvp",
+    "apk": "com.twitter.android"
+  },
+  "module": {
+    "id": "x_revanced_systemless",
+    "name": "X Patched (Magisk)",
+    "version": "1.0.0",
+    "author": "YourName",
+    "description": "X (Twitter) の広告非表示・制限解除パッチを適用したMagiskモジュールです。"
+  }
+}
