@@ -20,44 +20,29 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なファイルを探索
+          # 1. 必要なファイルを特定
           CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
           APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
           
-          # 2. ファイルの存在確認
-          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
-            echo "Error: 必要なファイル（JARまたはAPKM）が見つかりません"
-            exit 1
-          fi
+          # 2. パッチファイルを事前にダウンロード（確実性を高めるため）
+          curl -L https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp -o patches.rvp
           
           # 3. APKの解凍とベースAPKの特定
           unzip -o "$APK_FILE" -d temp_apk
-          # 階層が深くても確実に.apkファイルを見つける
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
           
-          echo "Debug: Using Base APK -> $BASE_APK"
-          
-          # もし見つからなかったら止める（原因特定のため）
-          if [ -z "$BASE_APK" ]; then
-            echo "Error: base.apkが見つかりませんでした。temp_apk内をリスト表示します。"
-            find temp_apk -ls
-            exit 1
-          fi
-          
-          # 4. パッチ適用
-          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp --exclusive
+          # 4. パッチ適用 (修正ポイント: -b を -p に変更)
+          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -p patches.rvp --exclusive
           
           # 5. Magiskモジュール構成の作成
-          # フォルダを一つずつ確実に作成し、移動させる
-          mkdir -p final_module/system/app/Twitter/
+          mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
-          
           echo "id=x_revanced_patched" > final_module/module.prop
           echo "name=X Patched (ReVanced)" >> final_module/module.prop
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           
-          # 6. ZIP圧縮
+          # 6. ZIP圧縮 (Magiskが認識できる正しい階層構造にする)
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
