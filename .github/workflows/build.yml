@@ -20,20 +20,28 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y android-sdk-build-tools
 
       - - name: Build with ReVanced CLI
+       - name: Build with ReVanced CLI
         run: |
           [ -f settings.env ] && source settings.env
           
-          # 1. APIに頼らず、直接固定URLでダウンロードする (最新版)
-          # curlでリダイレクトを追跡(-L)し、確実にファイルを取得
-          curl -L "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar" -o revanced-cli.jar
-          curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp" -o patches.rvp
-          
-          # ダウンロード確認 (ファイルが小さすぎる場合はHTMLを落としている可能性が高い)
-          ls -lh revanced-cli.jar patches.rvp
-          
-          # 2. APKのダウンロード
+          # 1. 確実にダウンロードし、サイズを確認
+          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
           wget --user-agent="Mozilla/5.0" "$APK_URL" -O app.apkm
           
+          # 2. ファイルチェック：すべて1MB以上あるか？
+          if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ] || [ $(stat -c%s "patches.rvp") -lt 1000000 ] || [ $(stat -c%s "app.apkm") -lt 1000000 ]; then
+            echo "エラー: ダウンロード失敗。ファイルサイズを確認してください。"
+            ls -lh
+            exit 1
+          fi
+          
+          # 3. 実行
+          unzip -o app.apkm -d temp_apk
+          find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
+          java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
+          
+          # ... (以下モジュール化)
           # 3. 解凍とパッチ適用... (以下省略)
 
       - uses: actions/upload-artifact@v4
