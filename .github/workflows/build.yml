@@ -26,32 +26,38 @@ jobs:
             exit 1
           fi
 
-          # 2. パッチを事前にダウンロード（修正: URLとファイル名を正しいものに変更）
-          curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar" -o patches.jar
+          # 2. パッチとインテグレーションをダウンロード（修正: 正しいURLを使用し、破損チェック追加）
+          curl -L -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar"
+          curl -L -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/latest/download/revanced-integrations.apk"
 
-          if [ ! -s patches.jar ]; then
-            echo "Error: patches.jar のダウンロードに失敗しました。"
+          # ファイルサイズチェック（破損を防ぐ: 最小サイズとして100KB以上を想定）
+          if [ ! -s patches.jar ] || [ $(stat -c%s patches.jar) -lt 100000 ]; then
+            echo "Error: patches.jar のダウンロードに失敗または破損しています。"
+            exit 1
+          fi
+          if [ ! -s integrations.apk ] || [ $(stat -c%s integrations.apk) -lt 100000 ]; then
+            echo "Error: integrations.apk のダウンロードに失敗または破損しています。"
             exit 1
           fi
 
-          # 3. APKの解凍とベースAPKの特定（修正: base.apkが見つからない場合のチェック追加）
+          # 3. APKの解凍とベースAPKの特定
           unzip -o "$APK_FILE" -d temp_apk
-          BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
+          BASE_APK=$(find temp_apk -type f -name "base.apk" | head -n 1)  # base.apkを明示的に指定
 
           if [ -z "$BASE_APK" ]; then
             echo "Error: base.apk が見つかりません。"
             exit 1
           fi
 
-          # 4. パッチ適用（修正: --appオプションを削除し、$BASE_APKをポジショナル引数として最後に移動）
-          # --exclusive を外すことで自動的に適切なパッチが選ばれます
+          # 4. パッチ適用（修正: ReVanced CLIの正しいオプションを使用、integrationsをmerge）
           java -jar "$CLI_JAR" patch \
-            --patches=patches.jar \
+            --bundle=patches.jar \
+            --merge=integrations.apk \
             --out=patched.apk \
             --force \
             "$BASE_APK"
 
-          # 5. Magiskモジュール構成の作成
+          # 5. Magiskモジュール構成の作成（アプリ名をX/Twitterに合わせて調整可能）
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
