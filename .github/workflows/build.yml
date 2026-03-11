@@ -24,7 +24,7 @@ jobs:
           
           # 2. APKのダウンロード（Googleドライブの直接ダウンロードIDを指定）
           # ※URLの確認: https://drive.google.com/uc?export=download&id=ファイルID
-          APK_URL=https://github.com/BlackCatLove2222/sample/releases/download/apkm/com.twitter.android_11.72.0-alpha.1-311720201_1arch_1dpi_1lang_048bc87bd6177f89b331027ebcc8ba0e_apkmirror.com.2.2.apkm
+          APK_URL=https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm
           
           # 3. ファイルの妥当性チェック
           if [ $(stat -c%s "app.apkm") -lt 10000000 ]; then 
