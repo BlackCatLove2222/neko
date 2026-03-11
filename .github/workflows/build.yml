@@ -34,7 +34,7 @@ jobs:
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
           
-          # 4. パッチ適用（パッチファイルをURLから自動取得）
+          # 4. パッチ適用
           java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp --exclusive
           
           # 5. Magiskモジュール構成の作成
@@ -45,7 +45,7 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
           
-          # 6. ZIP圧縮（フォルダの中身だけを圧縮）
+          # 6. ZIP圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
