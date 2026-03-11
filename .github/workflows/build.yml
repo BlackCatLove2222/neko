@@ -36,7 +36,8 @@ jobs:
           
           # 実行
           unzip -o "$APK_FILE" -d temp_apk
-          java -jar "$CLI_JAR" -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
+          BASE_APK=$(find temp_apk -name "base.apk" | head -n 1)
+          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -b "$PATCH_FILE" --exclusive
           
           # 以下、モジュール作成
           mkdir -p final_module/system/app/Twitter
