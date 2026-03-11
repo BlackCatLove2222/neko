@@ -16,22 +16,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Install Android Build Tools
+        run: sudo apt-get update && sudo apt-get install -y android-sdk-build-tools
+
       - name: Build with ReVanced CLI
         run: |
-          # 1. APKのダウンロード
-          APK_URL="https://drive.usercontent.google.com/download?id=1sp5-_6hoRAMwpezb30HCulxBY6Qwq3WD&export=download&authuser=0&confirm=t&uuid=5401e639-b3bf-409b-bf74-bb4a173f2a56&at=AGN2oQ2zaJWyX28O4b6AAa9Nj-Pl:1773212599838"
+          # 1. Releasesに上げたCLIを取得
+          # 以下の YOUR_COPIED_URL_HERE をコピーしたURLに置き換えてください
+          curl -L -o revanced-cli.jar "YOUR_COPIED_URL_HERE"
+          
+          # 2. パッチファイルを取得
+          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          
+          # 3. APKのダウンロード（Googleドライブ）
+          APK_URL="https://drive.google.com/uc?export=download&id=1sp5-_6hoRAMwpezb30HCulxBY6Qwq3WD"
           wget --user-agent="Mozilla/5.0" --no-check-certificate "$APK_URL" -O app.apkm
           
-          # 2. リポジトリに置いたファイルを使用（ダウンロード不要）
-          mv revanced-cli-all.jar revanced-cli.jar
-          mv revanced-patches.rvp patches.rvp
-          
-          # 3. パッチ適用
+          # 4. 解凍とパッチ適用
           unzip -o app.apkm -d temp_apk
           find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
           java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
           
-          # 4. モジュール作成
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
