@@ -1,13 +1,55 @@
-- name: Build with ReVanced CLI
+name: Build X Magisk Module
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Android Build Tools
+        run: sudo apt-get update && sudo apt-get install -y android-sdk-build-tools
+
+      - name: Build with ReVanced CLI
         run: |
-          # 1. settings.env から変数を取り込む
-          source settings.env
+          # settings.envからURLを読み込む
+          [ -f settings.env ] && source settings.env
           
-          # 2. CLIとパッチの取得 (固定)
+          # CLIとパッチの取得
           wget https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli.jar -O revanced-cli.jar
           wget https://github.com/revanced/revanced-patches/releases/latest/download/patches-2.0.0.rvp -O patches.rvp
           
-          # 3. APKMダウンロード (変数 $APK_URL を使用)
-          wget --user-agent="Mozilla/5.0" "$APK_URL" -O app.apkm
+          # APKのダウンロード (設定したAPK_URLを使用)
+          if [ -z "$APK_URL" ]; then echo "Error: APK_URL is empty"; exit 1; fi
+          wget --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "$APK_URL" -O app.apkm
           
-          # 以下、解凍・パッチ処理はそのまま...
+          # 解凍・抽出
+          unzip app.apkm -d temp_apk
+          find temp_apk -name "*.apk" -printf "%s %p\n" | sort -nr | head -n 1 | cut -d' ' -f2- > base_path.txt
+          cp $(cat base_path.txt) twitter.apk
+          
+          # パッチ適用
+          java -jar revanced-cli.jar -a twitter.apk -o patched.apk -b patches.rvp --exclusive
+          
+          # モジュール化
+          mkdir -p final_module/system/app/Twitter
+          cp patched.apk final_module/system/app/Twitter/Twitter.apk
+          echo "id=x_revanced_patched" > final_module/module.prop
+          echo "name=X Patched (ReVanced)" >> final_module/module.prop
+          echo "version=11.72.0" >> final_module/module.prop
+          echo "author=GeminiUser" >> final_module/module.prop
+          cd final_module && zip -r ../X-Patched-Module.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Final-Magisk-Module
+          path: X-Patched-Module.zip
