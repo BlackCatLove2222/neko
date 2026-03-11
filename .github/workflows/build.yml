@@ -1,29 +1,24 @@
 - name: Build with ReVanced CLI
         run: |
-          # 1. GitHub APIを使用して最新のCLI (.jar) だけを正確に取得
-          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | grep -oE "https://github.com/ReVanced/revanced-cli/releases/download/[^\"]+\.jar" | head -n 1)
-          wget "$CLI_URL" -O revanced-cli.jar
-          
-          # 2. APKMをダウンロード
-          wget "https://www.apkmirror.com/apk/x-corp/twitter/x-11-72-0-alpha-1-release/x-11-72-0-alpha-1-android-apk-download/download/?key=46840597ddb1b2645bc5d3882653fe1ff1650515" -O app.apkm
-          
-          # 3. APKMを解凍し、中の base.apk を特定する
-          unzip app.apkm -d temp_apk
-          find temp_apk -name "*.apk" -printf "%s %p\n" | sort -nr | head -n 1 | cut -d' ' -f2- > base_path.txt
-          cp $(cat base_path.txt) twitter.apk
-          
-          # 4. パッチ適用
-          java -jar revanced-cli.jar -a twitter.apk -o patched.apk -b patches-2.0.0.rvp --exclusive
-          
-          # 5. モジュール化
-          mkdir -p final_module/system/app/Twitter
-          cp patched.apk final_module/system/app/Twitter/Twitter.apk
-          
-          echo "id=x_revanced_patched" > final_module/module.prop
-          echo "name=X Patched (ReVanced)" >> final_module/module.prop
-          echo "version=11.72.0" >> final_module/module.prop
-          echo "author=GeminiUser" >> final_module/module.prop
-          
-          cd final_module && zip -r ../X-Patched-Module.zip .
-          name: Final-Magisk-Module
-          path: X-Patched-Module.zip
+            # ここはスペースが4つ入っています
+            CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | grep -oE "https://github.com/ReVanced/revanced-cli/releases/download/[^\"]+\.jar" | head -n 1)
+            wget "$CLI_URL" -O revanced-cli.jar
+            
+            # 以下もすべてスペース4つ分インデントしてください
+            wget "https://www.apkmirror.com/apk/x-corp/twitter/x-11-72-0-alpha-1-release/x-11-72-0-alpha-1-android-apk-download/download/?key=46840597ddb1b2645bc5d3882653fe1ff1650515" -O app.apkm
+            
+            unzip app.apkm -d temp_apk
+            find temp_apk -name "*.apk" -printf "%s %p\n" | sort -nr | head -n 1 | cut -d' ' -f2- > base_path.txt
+            cp $(cat base_path.txt) twitter.apk
+            
+            java -jar revanced-cli.jar -a twitter.apk -o patched.apk -b patches-2.0.0.rvp --exclusive
+            
+            mkdir -p final_module/system/app/Twitter
+            cp patched.apk final_module/system/app/Twitter/Twitter.apk
+            
+            echo "id=x_revanced_patched" > final_module/module.prop
+            echo "name=X Patched (ReVanced)" >> final_module/module.prop
+            echo "version=11.72.0" >> final_module/module.prop
+            echo "author=GeminiUser" >> final_module/module.prop
+            
+            cd final_module && zip -r ../X-Patched-Module.zip .
