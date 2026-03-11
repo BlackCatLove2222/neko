@@ -17,10 +17,10 @@ jobs:
           distribution: 'temurin'
       - name: Build with ReVanced CLI
         run: |
-          # 1. Clone and build ReVanced CLI (using inotia00 fork for compatibility)
-          git clone https://github.com/inotia00/revanced-cli.git
+          # 1. Clone and build ReVanced CLI (using crimera fork for compatibility)
+          git clone https://github.com/crimera/revanced-cli.git
           cd revanced-cli
-          ./gradlew build
+          ./gradlew build --no-daemon --warning-mode all --stacktrace
           cd ..
           CLI_JAR=$(find revanced-cli -name "revanced-cli-*-all.jar" | head -n 1)
           if [ -z "$CLI_JAR" ]; then
@@ -28,10 +28,10 @@ jobs:
             exit 1
           fi
 
-          # 2. Clone and build piko patches (crimera/piko for Twitter/X)
+          # 2. Clone and build piko patches (for Twitter/X)
           git clone https://github.com/crimera/piko.git
           cd piko
-          ./gradlew build
+          ./gradlew build --no-daemon --warning-mode all --stacktrace
           cd ..
           PATCHES_JAR=$(find piko -name "piko-*-jar-with-dependencies.jar" | head -n 1)
           if [ -z "$PATCHES_JAR" ]; then
@@ -42,7 +42,7 @@ jobs:
           # 3. Clone and build ReVanced Integrations (crimera fork)
           git clone https://github.com/crimera/revanced-integrations.git
           cd revanced-integrations
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon --warning-mode all --stacktrace
           cd ..
           INTEGRATIONS_APK=$(find revanced-integrations -name "revanced-integrations-*.apk" | head -n 1)
           if [ -z "$INTEGRATIONS_APK" ]; then
