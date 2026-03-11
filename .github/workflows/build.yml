@@ -17,28 +17,41 @@ jobs:
           distribution: 'temurin'
       - name: Build with ReVanced CLI
         run: |
-          # 1. CLI, パッチ, インテグレーションをダウンロード（最新開発版の固定URLを使用）
-          curl -L -f -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/v5.0.1/revanced-cli-5.0.1-all.jar" || { echo "Error: revanced-cli.jar ダウンロード失敗"; exit 1; }
-          curl -L -f -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/download/v6.0.0-dev.24/revanced-patches-6.0.0-dev.24.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
-          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/download/v1.17.0-dev.6/revanced-integrations-1.17.0-dev.6.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
-
-          # ファイルサイズチェック（最小サイズを調整）
-          if [ $(stat -c%s revanced-cli.jar) -lt 10000 ]; then
-            echo "Error: revanced-cli.jar が破損または空です（サイズ: $(stat -c%s revanced-cli.jar) バイト）。"
-            exit 1
-          fi
-          if [ $(stat -c%s patches.jar) -lt 50000 ]; then
-            echo "Error: patches.jar が破損または空です（サイズ: $(stat -c%s patches.jar) バイト）。"
-            exit 1
-          fi
-          if [ $(stat -c%s integrations.apk) -lt 50000 ]; then
-            echo "Error: integrations.apk が破損または空です（サイズ: $(stat -c%s integrations.apk) バイト）。"
+          # 1. Clone and build ReVanced CLI
+          git clone https://github.com/ReVanced/revanced-cli.git
+          cd revanced-cli
+          ./gradlew build
+          cd ..
+          CLI_JAR=$(find revanced-cli -name "revanced-cli-*-all.jar" | head -n 1)
+          if [ -z "$CLI_JAR" ]; then
+            echo "Error: revanced-cli.jar not built."
             exit 1
           fi
 
-          # 2. APKの特定と解凍
+          # 2. Clone and build ReVanced Patches
+          git clone https://github.com/ReVanced/revanced-patches.git
+          cd revanced-patches
+          ./gradlew build
+          cd ..
+          PATCHES_JAR=$(find revanced-patches -name "revanced-patches-*-jar-with-dependencies.jar" | head -n 1)  # Built JAR name format
+          if [ -z "$PATCHES_JAR" ]; then
+            echo "Error: patches.jar not built."
+            exit 1
+          fi
+
+          # 3. Clone and build ReVanced Integrations
+          git clone https://github.com/ReVanced/revanced-integrations.git
+          cd revanced-integrations
+          ./gradlew assembleRelease
+          cd ..
+          INTEGRATIONS_APK=$(find revanced-integrations -name "revanced-integrations-*.apk" | head -n 1)
+          if [ -z "$INTEGRATIONS_APK" ]; then
+            echo "Error: integrations.apk not built."
+            exit 1
+          fi
+
+          # 4. APKの特定と解凍
           APK_FILE=$(ls *.apkm | head -n 1)
-
           if [ -z "$APK_FILE" ]; then
             echo "Error: *.apkm が見つかりません。"
             exit 1
@@ -46,21 +59,20 @@ jobs:
 
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "base.apk" | head -n 1)
-
           if [ -z "$BASE_APK" ]; then
             echo "Error: base.apk が見つかりません。"
             exit 1
           fi
 
-          # 3. パッチ適用
-          java -jar revanced-cli.jar patch \
-            --bundle=patches.jar \
-            --merge=integrations.apk \
+          # 5. パッチ適用
+          java -jar "$CLI_JAR" patch \
+            --bundle="$PATCHES_JAR" \
+            --merge="$INTEGRATIONS_APK" \
             --out=patched.apk \
             --force \
             "$BASE_APK"
 
-          # 4. Magiskモジュール構成の作成
+          # 6. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
@@ -68,7 +80,7 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
 
-          # 5. ZIP圧縮
+          # 7. ZIP圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
       - uses: actions/upload-artifact@v4
         with:
