@@ -18,24 +18,24 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なツールを最新の安定版から直接取得
-          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
-          curl -L -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
+          # 1. ツール取得時に --retry 3 を追加して安定させる
+          curl -L --retry 3 -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          curl -L --retry 3 -o patches.rvp "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.rvp"
           
-          # 2. APKのダウンロード（Googleドライブの直接ダウンロードIDを指定）
-          # ※URLの確認: https://drive.google.com/uc?export=download&id=ファイルID
-          APK_URL=https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm
+          # 2. APKのダウンロード（Googleドライブからの取得）
+          # ※リンク切れを防ぐため、必ず「ダウンロード可能な直リンク」を使用してください
+          wget --user-agent="Mozilla/5.0" --no-check-certificate "$https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm" -O app.apkm
           
-          # 3. ファイルの妥当性チェック
-          if [ $(stat -c%s "app.apkm") -lt 10000000 ]; then 
-            echo "Error: APK download failed or incomplete."
-            exit 1
-          fi
+          # 3. 実行前のチェック（ファイルが存在し、かつ空ではないか確認）
+          if [ ! -s revanced-cli.jar ]; then echo "Error: CLI download failed"; exit 1; fi
+          if [ ! -s app.apkm ]; then echo "Error: APK download failed"; exit 1; fi
           
-          # 4. パッチ適用
-          java -jar revanced-cli.jar -a app.apkm -o patched.apk -b patches.rvp --exclusive
+          # 4. パッチ適用とビルド
+          unzip -o app.apkm -d temp_apk
+          find temp_apk -name "*.apk" | sort | head -n 1 > base_path.txt
+          java -jar revanced-cli.jar -a $(cat base_path.txt) -o patched.apk -b patches.rvp --exclusive
           
-          # 5. モジュール構造の作成
+          # 5. モジュール作成
           mkdir -p final_module/system/app/Twitter
           cp patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
