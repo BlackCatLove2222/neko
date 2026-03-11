@@ -1,54 +1,17 @@
-name: Build X Magisk Module
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build and Patch
+- name: Build with ReVanced CLI
         run: |
-          # 1. ダウンロードとチェックを1つのコマンドブロックで完結させる
-          echo "Downloading CLI..."
-          curl -L -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar" || exit 1
+          # 1. 確実に「生のバイナリ」を落とすURLに変える
+          # GitHubのReleaseページのURLではなく、ファイルの実体への直リンクを指定
+          wget -qO revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/latest/download/revanced-cli-all.jar"
+          wget -qO app.apkm "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm"
           
-          echo "Downloading APK..."
-          curl -L "https://github.com/BlackCatLove2222/sample/releases/download/apkm/app.apkm" -o app.apkm || exit 1
-          
-          # 2. パッチはリポジトリにあるものを直接指定
-          PATCH_FILE=$(find . -maxdepth 1 -name "*.rvp" | head -n 1)
-          
-          # 3. 最終確認：ファイルが本当に揃っているか
-          if [ ! -s "revanced-cli.jar" ] || [ ! -s "$PATCH_FILE" ] || [ ! -s "app.apkm" ]; then
-            echo "Error: Files not found or corrupted!"
-            ls -lh
+          # 2. 【重要】ファイルサイズをチェックする
+          # 1MB未満なら「失敗」とみなして止める
+          if [ $(stat -c%s "revanced-cli.jar") -lt 1000000 ]; then
+            echo "Error: ダウンロード失敗。中身が空かHTMLです。"
+            ls -lh  # どのファイルが小さいか確認する
             exit 1
           fi
           
-          # 4. 実行
-          unzip -o app.apkm -d temp_apk
-          java -jar revanced-cli.jar -a "$(find temp_apk -name "*.apk" | head -n 1)" -o patched.apk -b "$PATCH_FILE" --exclusive
-          
-          # 5. モジュール作成
-          mkdir -p final_module/system/app/Twitter
-          cp patched.apk final_module/system/app/Twitter/Twitter.apk
-          echo "id=x_revanced_patched" > final_module/module.prop
-          echo "name=X Patched (ReVanced)" >> final_module/module.prop
-          echo "version=11.72.0" >> final_module/module.prop
-          echo "author=GeminiUser" >> final_module/module.prop
-          cd final_module && zip -r ../X-Patched-Module.zip .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Final-Magisk-Module
-          path: X-Patched-Module.zip
+          # 3. パッチ適用
+          java -jar revanced-cli.jar -a app.apkm -o patched.apk -b *.rvp --exclusive
