@@ -17,31 +17,33 @@ jobs:
           distribution: 'temurin'
       - name: Build with ReVanced CLI
         run: |
-          # 1. 必要なファイルを特定
-          CLI_JAR=$(ls revanced-cli-*.jar | head -n 1)
-          APK_FILE=$(ls *.apkm | head -n 1)
+          # 1. CLI, パッチ, インテグレーションをダウンロード（固定バージョンURLを使用: 公式/フォークの最新有効リリース）
+          curl -L -f -o revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/v5.0.1/revanced-cli-5.0.1-all.jar" || { echo "Error: revanced-cli.jar ダウンロード失敗"; exit 1; }
+          curl -L -f -o patches.jar "https://github.com/anddea/revanced-patches/releases/download/v3.16.0/revanced-patches-3.16.0.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
+          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/download/v1.16.0/revanced-integrations-1.16.0.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
 
-          if [ -z "$CLI_JAR" ] || [ -z "$APK_FILE" ]; then
-            echo "Error: revanced-cli-*.jar または *.apkm が見つかりません。"
+          # ファイルサイズチェック
+          if [ $(stat -c%s revanced-cli.jar) -lt 10000 ]; then
+            echo "Error: revanced-cli.jar が破損または空です。"
             exit 1
           fi
-
-          # 2. パッチとインテグレーションをダウンロード（修正: 安定したダウンロードオプション追加、latest URL確認）
-          # GitHubのlatestリダイレクトを処理するため、-L -f を使用。失敗したらエラー
-          curl -L -f -o patches.jar "https://github.com/ReVanced/revanced-patches/releases/latest/download/revanced-patches.jar" || { echo "Error: patches.jar ダウンロード失敗"; exit 1; }
-          curl -L -f -o integrations.apk "https://github.com/ReVanced/revanced-integrations/releases/latest/download/revanced-integrations.apk" || { echo "Error: integrations.apk ダウンロード失敗"; exit 1; }
-
-          # ファイルサイズチェック（最小サイズを50KBに調整: 実際のパッチは数MBだが、安全に）
           if [ $(stat -c%s patches.jar) -lt 50000 ]; then
-            echo "Error: patches.jar が破損または空です（サイズ: $(stat -c%s patches.jar) バイト）。"
+            echo "Error: patches.jar が破損または空です。"
             exit 1
           fi
           if [ $(stat -c%s integrations.apk) -lt 50000 ]; then
-            echo "Error: integrations.apk が破損または空です（サイズ: $(stat -c%s integrations.apk) バイト）。"
+            echo "Error: integrations.apk が破損または空です。"
             exit 1
           fi
 
-          # 3. APKの解凍とベースAPKの特定
+          # 2. APKの特定と解凍
+          APK_FILE=$(ls *.apkm | head -n 1)
+
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: *.apkm が見つかりません。"
+            exit 1
+          fi
+
           unzip -o "$APK_FILE" -d temp_apk
           BASE_APK=$(find temp_apk -type f -name "base.apk" | head -n 1)
 
@@ -50,15 +52,15 @@ jobs:
             exit 1
           fi
 
-          # 4. パッチ適用（ReVanced CLIの正しいオプションを使用）
-          java -jar "$CLI_JAR" patch \
+          # 3. パッチ適用
+          java -jar revanced-cli.jar patch \
             --bundle=patches.jar \
             --merge=integrations.apk \
             --out=patched.apk \
             --force \
             "$BASE_APK"
 
-          # 5. Magiskモジュール構成の作成
+          # 4. Magiskモジュール構成の作成
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
           echo "id=x_revanced_patched" > final_module/module.prop
@@ -66,7 +68,7 @@ jobs:
           echo "version=11.72.0" >> final_module/module.prop
           echo "author=GeminiUser" >> final_module/module.prop
 
-          # 6. ZIP圧縮 (Magiskが認識できる正しい階層構造)
+          # 5. ZIP圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
       - uses: actions/upload-artifact@v4
         with:
