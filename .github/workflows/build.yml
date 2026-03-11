@@ -20,32 +20,54 @@ jobs:
 
       - name: Build with ReVanced CLI
         run: |
-          # 1. ファイルを特定
+          # 1. 環境とファイルの状態を徹底チェック
+          echo "=== STEP 1: ファイル確認 ==="
           CLI_JAR=$(ls revanced-cli-*.jar 2>/dev/null | head -n 1)
           APK_FILE=$(ls *.apkm 2>/dev/null | head -n 1)
-          
-          # 2. パッチファイルを事前にダウンロード
-          curl -L https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp -o patches.rvp
-          
-          # 3. APKの解凍
-          unzip -o "$APK_FILE" -d temp_apk
-          BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
-          
-          echo "Debug: Using CLI -> $CLI_JAR"
-          echo "Debug: Using APK -> $BASE_APK"
+          echo "CLIファイル: $CLI_JAR"
+          echo "APKファイル: $APK_FILE"
+          ls -lh
 
-          # 4. パッチ適用 (修正点: --exclusive を削除し、全パッチを適用)
-          java -jar "$CLI_JAR" patch -a "$BASE_APK" -o patched.apk -p patches.rvp
-          
-          # 5. Magiskモジュール構成の作成
+          # 2. パッチを確実に用意
+          echo "=== STEP 2: パッチ取得 ==="
+          curl -L "https://github.com/ReVanced/revanced-patches/releases/latest/download/patches.rvp" -o patches.rvp
+          if [ ! -s patches.rvp ]; then echo "Error: パッチのダウンロードに失敗しました"; exit 1; fi
+
+          # 3. APKを解凍してベースを特定
+          echo "=== STEP 3: APK解凍 ==="
+          unzip -o "$APK_FILE" -d temp_apk > /dev/null
+          BASE_APK=$(find temp_apk -type f -name "*.apk" | head -n 1)
+          echo "Base APKパス: $BASE_APK"
+
+          # 4. パッチ適用（構文エラーを防ぐため引数をシンプルに）
+          echo "=== STEP 4: パッチ適用開始 ==="
+          # 最新CLIの標準的な構文: patch -a [APP] -o [OUT] -p [PATCHES]
+          java -jar "$CLI_JAR" patch \
+            --app "$BASE_APK" \
+            --out patched.apk \
+            --patches patches.rvp \
+            --exclusive \
+            --force
+
+          # 5. 生成物の確認
+          echo "=== STEP 5: 結果確認 ==="
+          if [ -f "patched.apk" ]; then
+            echo "成功: patched.apk が作成されました"
+          else
+            echo "失敗: patched.apk が見当たりません。上のログを確認してください。"
+            exit 1
+          fi
+
+          # 6. モジュール化
           mkdir -p final_module/system/app/Twitter
           mv patched.apk final_module/system/app/Twitter/Twitter.apk
-          echo "id=x_revanced_patched" > final_module/module.prop
-          echo "name=X Patched (ReVanced)" >> final_module/module.prop
-          echo "version=11.72.0" >> final_module/module.prop
-          echo "author=GeminiUser" >> final_module/module.prop
+          {
+            echo "id=x_revanced_patched"
+            echo "name=X Patched (ReVanced)"
+            echo "version=11.72.0"
+            echo "author=GeminiUser"
+          } > final_module/module.prop
           
-          # 6. ZIP圧縮
           cd final_module && zip -r ../X-Patched-Module.zip .
 
       - uses: actions/upload-artifact@v4
