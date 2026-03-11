@@ -1,25 +1,7 @@
-name: Build X Magisk Module
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build with ReVanced CLI
+- name: Build with ReVanced CLI
         run: |
-          # 1. CLIのダウンロード
-          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | grep "browser_download_url.*\.jar" | cut -d '"' -f 4)
+          # 1. GitHub APIを使用して最新のCLI (.jar) だけを正確に取得
+          CLI_URL=$(curl -s https://api.github.com/repos/ReVanced/revanced-cli/releases/latest | grep -oE "https://github.com/ReVanced/revanced-cli/releases/download/[^\"]+\.jar" | head -n 1)
           wget "$CLI_URL" -O revanced-cli.jar
           
           # 2. APKMをダウンロード
@@ -43,8 +25,5 @@ jobs:
           echo "author=GeminiUser" >> final_module/module.prop
           
           cd final_module && zip -r ../X-Patched-Module.zip .
-
-      - uses: actions/upload-artifact@v4
-        with:
           name: Final-Magisk-Module
           path: X-Patched-Module.zip
